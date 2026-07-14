@@ -60,6 +60,9 @@ async function getUSAChart(date: string) {
 
 async function getUKChart(date: string) {
   try {
+    if (date < "1952-11-14") return { available: false, message: "UK chart did not exist before November 1952" };
+
+
     const d = date.replace(/-/g, "");
     const url = "https://www.officialcharts.com/charts/singles-chart/" + d + "/7501/";
     const text = await httpGet(url);
