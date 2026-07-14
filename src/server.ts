@@ -110,24 +110,39 @@ async function fetchWikipediaEvents(month: string, day: string): Promise<any[]> 
 async function getWorldEventsOnDate(date: string) {
   try {
     const d = new Date(date + "T00:00:00Z");
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(d.getUTCDate()).padStart(2, "0");
     const year = d.getUTCFullYear();
-    const events = await fetchWikipediaEvents(month, day);
-    const eventsOnOrBefore = events
-      .filter((e: any) => e.year <= year)
-      .sort((a: any, b: any) => b.year - a.year)
-      .slice(0, 3);
-    if (eventsOnOrBefore.length === 0) {
-      return { available: false, message: "No historical events found for this date" };
+
+    // Try exact date first, then nearby days (±1, ±2, ±3)
+    const daysToTry: Date[] = [d];
+    for (let offset = 1; offset <= 3; offset++) {
+      const before = new Date(d);
+      before.setUTCDate(before.getUTCDate() - offset);
+      const after = new Date(d);
+      after.setUTCDate(after.getUTCDate() + offset);
+      daysToTry.push(before, after);
     }
-    return {
-      available: true,
-      events: eventsOnOrBefore.map((e: any) => ({
-        year: String(e.year),
-        description: e.text
-      }))
-    };
+
+    for (const tryDate of daysToTry) {
+      const month = String(tryDate.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(tryDate.getUTCDate()).padStart(2, "0");
+      const events = await fetchWikipediaEvents(month, day);
+      // Filter only events from the exact birth year
+      const exactYearEvents = events
+        .filter((e: any) => e.year === year)
+        .slice(0, 3);
+      if (exactYearEvents.length > 0) {
+        const dateLabel = tryDate.toISOString().substring(0, 10);
+        return {
+          available: true,
+          dateUsed: dateLabel,
+          events: exactYearEvents.map((e: any) => ({
+            year: String(e.year),
+            description: e.text
+          }))
+        };
+      }
+    }
+    return { available: false, message: "No historical events found on or near this date" };
   } catch (err: any) {
     console.log("World events on date error:", err.message);
     return { available: false, message: "Could not fetch historical events" };
