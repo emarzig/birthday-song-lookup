@@ -74,9 +74,12 @@ document.getElementById("f").onsubmit=async function(ev){
   else songs+='<div class="card"><h3>Yugoslavia/Croatia Chart</h3><p class="na">'+j.regionalChart.message+'</p></div>';
   songs+='</div>';
 
-  // World Events on date tab content (events up to that year)
+  // World Events on date tab content (events from exact date or nearby)
   var eventsOnDate='<div class="tab-content" id="tab-events-on-date">';
   if(j.worldEventsOnDate && j.worldEventsOnDate.available){
+    if(j.worldEventsOnDate.dateUsed && j.worldEventsOnDate.dateUsed !== j.inputDate){
+      eventsOnDate+='<div class="card"><p class="na" style="color:#666">No events found on exact date. Showing events from '+j.worldEventsOnDate.dateUsed+':</p></div>';
+    }
     for(var i=0;i<j.worldEventsOnDate.events.length;i++){
       var evt=j.worldEventsOnDate.events[i];
       eventsOnDate+='<div class="event-item"><div class="event-year">'+evt.year+'</div><div class="event-desc">'+evt.description+'</div></div>';
