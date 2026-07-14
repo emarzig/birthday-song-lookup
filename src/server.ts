@@ -93,7 +93,7 @@ async function getUKChart(date: string) {
   }
 }
 
-async function getWorldEvents(date: string) {
+async function getWorldEventsOnDate(date: string) {
   try {
     const d = new Date(date + "T00:00:00Z");
     const month = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -117,8 +117,7 @@ async function getWorldEvents(date: string) {
       }))
     };
   } catch (err: any) {
-    console.log("World events error:", err.message);
-    // Fallback: try alternative Wikipedia endpoint
+    console.log("World events on date error:", err.message);
     try {
       const d = new Date(date + "T00:00:00Z");
       const month = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -137,6 +136,69 @@ async function getWorldEvents(date: string) {
       return {
         available: true,
         events: eventsOnOrBefore.map((e: any) => ({
+          year: String(e.year),
+          description: e.text
+        }))
+      };
+    } catch {
+      return { available: false, message: "Could not fetch historical events" };
+    }
+  }
+}
+
+async function getWorldEventsThisDay(date: string) {
+  try {
+    const d = new Date(date + "T00:00:00Z");
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    const url = `https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/${month}/${day}`;
+    const text = await httpGet(url);
+    const json = JSON.parse(text);
+    // Get the most significant events from all years (pick 3 spread across history)
+    const allEvents = json.events.sort((a: any, b: any) => b.year - a.year);
+    const picked: any[] = [];
+    if (allEvents.length <= 3) {
+      picked.push(...allEvents);
+    } else {
+      // Pick from recent, middle, and old history
+      picked.push(allEvents[0]);
+      picked.push(allEvents[Math.floor(allEvents.length / 2)]);
+      picked.push(allEvents[allEvents.length - 1]);
+    }
+    if (picked.length === 0) {
+      return { available: false, message: "No historical events found for this day" };
+    }
+    return {
+      available: true,
+      events: picked.map((e: any) => ({
+        year: String(e.year),
+        description: e.text
+      }))
+    };
+  } catch (err: any) {
+    console.log("World events this day error:", err.message);
+    try {
+      const d = new Date(date + "T00:00:00Z");
+      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const url = `https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/${month}/${day}`;
+      const text = await httpGet(url);
+      const json = JSON.parse(text);
+      const allEvents = json.events.sort((a: any, b: any) => b.year - a.year);
+      const picked: any[] = [];
+      if (allEvents.length <= 3) {
+        picked.push(...allEvents);
+      } else {
+        picked.push(allEvents[0]);
+        picked.push(allEvents[Math.floor(allEvents.length / 2)]);
+        picked.push(allEvents[allEvents.length - 1]);
+      }
+      if (picked.length === 0) {
+        return { available: false, message: "No historical events found for this day" };
+      }
+      return {
+        available: true,
+        events: picked.map((e: any) => ({
           year: String(e.year),
           description: e.text
         }))
@@ -178,9 +240,9 @@ app.post("/api/lookup", async (req, res) => {
   }
   const d = new Date(date + "T00:00:00Z");
   const dayOfWeek = days[d.getUTCDay()];
-  const [usaChart, ukChart, worldEvents] = await Promise.all([getUSAChart(date), getUKChart(date), getWorldEvents(date)]);
+  const [usaChart, ukChart, worldEventsOnDate, worldEventsThisDay] = await Promise.all([getUSAChart(date), getUKChart(date), getWorldEventsOnDate(date), getWorldEventsThisDay(date)]);
   const regionalChart = getRegionalChart(date);
-  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEvents });
+  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEventsOnDate, worldEventsThisDay });
 });
 
 app.listen(3000, () => console.log("Server running at http://localhost:3000"));

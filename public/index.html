@@ -19,8 +19,8 @@ input{width:100%;padding:.75rem;border:2px solid #ddd;border-radius:8px;font-siz
 .card .song{font-size:1.1rem;font-weight:600}
 .card .artist{color:#666}
 .na{color:#999;font-style:italic}
-.tabs{display:flex;gap:0;margin-top:1rem;border-bottom:2px solid #e0e0e0}
-.tab{padding:.6rem 1.2rem;cursor:pointer;border:none;background:none;font-size:.95rem;font-weight:500;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tabs{display:flex;gap:0;margin-top:1rem;border-bottom:2px solid #e0e0e0;flex-wrap:wrap}
+.tab{padding:.6rem 1rem;cursor:pointer;border:none;background:none;font-size:.85rem;font-weight:500;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
 .tab.active{color:#4a90d9;border-bottom-color:#4a90d9;font-weight:600}
 .tab:hover{color:#4a90d9}
 .tab-content{display:none}
@@ -28,6 +28,8 @@ input{width:100%;padding:.75rem;border:2px solid #ddd;border-radius:8px;font-siz
 .event-item{background:#f8f9fa;border-radius:8px;padding:1rem;margin-top:.75rem;border-left:3px solid #4a90d9}
 .event-item .event-year{font-size:.8rem;color:#4a90d9;font-weight:700;margin-bottom:.25rem}
 .event-item .event-desc{font-size:.95rem;color:#333;line-height:1.4}
+.event-item.thisday{border-left-color:#e67e22}
+.event-item.thisday .event-year{color:#e67e22}
 </style>
 </head>
 <body>
@@ -58,7 +60,8 @@ document.getElementById("f").onsubmit=async function(ev){
   // Tabs
   var tabs='<div class="tabs">';
   tabs+='<button class="tab active" data-tab="songs">Songs</button>';
-  tabs+='<button class="tab" data-tab="events">World Events</button>';
+  tabs+='<button class="tab" data-tab="events-on-date">World Events on '+j.inputDate+'</button>';
+  tabs+='<button class="tab" data-tab="events-this-day">World Events this day</button>';
   tabs+='</div>';
 
   // Songs tab content
@@ -71,20 +74,33 @@ document.getElementById("f").onsubmit=async function(ev){
   else songs+='<div class="card"><h3>Yugoslavia/Croatia Chart</h3><p class="na">'+j.regionalChart.message+'</p></div>';
   songs+='</div>';
 
-  // World Events tab content
-  var events='<div class="tab-content" id="tab-events">';
-  if(j.worldEvents && j.worldEvents.available){
-    for(var i=0;i<j.worldEvents.events.length;i++){
-      var evt=j.worldEvents.events[i];
-      events+='<div class="event-item"><div class="event-year">'+evt.year+'</div><div class="event-desc">'+evt.description+'</div></div>';
+  // World Events on date tab content (events up to that year)
+  var eventsOnDate='<div class="tab-content" id="tab-events-on-date">';
+  if(j.worldEventsOnDate && j.worldEventsOnDate.available){
+    for(var i=0;i<j.worldEventsOnDate.events.length;i++){
+      var evt=j.worldEventsOnDate.events[i];
+      eventsOnDate+='<div class="event-item"><div class="event-year">'+evt.year+'</div><div class="event-desc">'+evt.description+'</div></div>';
     }
   } else {
-    var msg=(j.worldEvents && j.worldEvents.message) ? j.worldEvents.message : "No events available";
-    events+='<div class="card"><p class="na">'+msg+'</p></div>';
+    var msg1=(j.worldEventsOnDate && j.worldEventsOnDate.message) ? j.worldEventsOnDate.message : "No events available";
+    eventsOnDate+='<div class="card"><p class="na">'+msg1+'</p></div>';
   }
-  events+='</div>';
+  eventsOnDate+='</div>';
 
-  r.innerHTML=dayCard+tabs+songs+events;
+  // World Events this day tab content (events from all years on this day)
+  var eventsThisDay='<div class="tab-content" id="tab-events-this-day">';
+  if(j.worldEventsThisDay && j.worldEventsThisDay.available){
+    for(var i=0;i<j.worldEventsThisDay.events.length;i++){
+      var evt=j.worldEventsThisDay.events[i];
+      eventsThisDay+='<div class="event-item thisday"><div class="event-year">'+evt.year+'</div><div class="event-desc">'+evt.description+'</div></div>';
+    }
+  } else {
+    var msg2=(j.worldEventsThisDay && j.worldEventsThisDay.message) ? j.worldEventsThisDay.message : "No events available";
+    eventsThisDay+='<div class="card"><p class="na">'+msg2+'</p></div>';
+  }
+  eventsThisDay+='</div>';
+
+  r.innerHTML=dayCard+tabs+songs+eventsOnDate+eventsThisDay;
 
   // Tab switching logic
   var tabBtns=r.querySelectorAll('.tab');
