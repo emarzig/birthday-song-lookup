@@ -8,8 +8,8 @@
 body{font-family:sans-serif;background:#f5f5f5;padding:2rem}
 .container{max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:2rem;box-shadow:0 2px 12px rgba(0,0,0,.1)}
 h1{margin-bottom:.5rem}
-p{color:#666;margin-bottom:1.5rem}
-label{display:block;margin-bottom:.5rem;font-weight:1200}
+p.subtitle{color:#666;margin-bottom:1.5rem}
+label{display:block;margin-bottom:.5rem;font-weight:600}
 input{width:100%;padding:.75rem;border:2px solid #ddd;border-radius:8px;font-size:1rem;margin-bottom:.5rem}
 .btn{background:#4a90d9;color:#fff;border:none;padding:.75rem;border-radius:8px;font-size:1rem;cursor:pointer;width:100%}
 .btn:hover{background:#357abd}
@@ -19,12 +19,21 @@ input{width:100%;padding:.75rem;border:2px solid #ddd;border-radius:8px;font-siz
 .card .song{font-size:1.1rem;font-weight:600}
 .card .artist{color:#666}
 .na{color:#999;font-style:italic}
+.tabs{display:flex;gap:0;margin-top:1rem;border-bottom:2px solid #e0e0e0}
+.tab{padding:.6rem 1.2rem;cursor:pointer;border:none;background:none;font-size:.95rem;font-weight:500;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab.active{color:#4a90d9;border-bottom-color:#4a90d9;font-weight:600}
+.tab:hover{color:#4a90d9}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.event-item{background:#f8f9fa;border-radius:8px;padding:1rem;margin-top:.75rem;border-left:3px solid #4a90d9}
+.event-item .event-year{font-size:.8rem;color:#4a90d9;font-weight:700;margin-bottom:.25rem}
+.event-item .event-desc{font-size:.95rem;color:#333;line-height:1.4}
 </style>
 </head>
 <body>
 <div class="container">
 <h1>Birthday Song Lookup</h1>
-<p>Enter a date of birth to discover what day it was and what songs were #1!</p>
+<p class="subtitle">Enter a date of birth to discover what day it was, what songs were #1, and what happened in the world!</p>
 <form id="f">
 <label>Date of Birth</label>
 <input type="text" id="d" placeholder="YYYY-MM-DD">
@@ -42,14 +51,52 @@ document.getElementById("f").onsubmit=async function(ev){
   var res=await fetch("/api/lookup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d})});
   var j=await res.json();
   if(!res.ok){e.textContent=j.message;return;}
-  var h='<div class="card"><h3>Day</h3><p class="song">'+j.inputDate+' - '+j.dayOfWeek+'</p></div>';
-  if(j.usaChart.available) h+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="song">'+j.usaChart.songTitle+'</p><p class="artist">'+j.usaChart.artist+'</p></div>';
-  else h+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="na">'+j.usaChart.message+'</p></div>';
-  if(j.ukChart.available) h+='<div class="card"><h3>UK Singles Chart</h3><p class="song">'+j.ukChart.songTitle+'</p><p class="artist">'+j.ukChart.artist+'</p></div>';
-  else h+='<div class="card"><h3>UK Singles Chart</h3><p class="na">'+j.ukChart.message+'</p></div>';
-  if(j.regionalChart.available) h+='<div class="card"><h3>'+j.regionalChart.chartSource+' Chart</h3><p class="song">'+j.regionalChart.songTitle+'</p><p class="artist">'+j.regionalChart.artist+'</p></div>';
-  else h+='<div class="card"><h3>Yugoslavia/Croatia Chart</h3><p class="na">'+j.regionalChart.message+'</p></div>';
-  r.innerHTML=h;
+
+  // Day card (always shown)
+  var dayCard='<div class="card"><h3>Day</h3><p class="song">'+j.inputDate+' - '+j.dayOfWeek+'</p></div>';
+
+  // Tabs
+  var tabs='<div class="tabs">';
+  tabs+='<button class="tab active" data-tab="songs">Songs</button>';
+  tabs+='<button class="tab" data-tab="events">World Events</button>';
+  tabs+='</div>';
+
+  // Songs tab content
+  var songs='<div class="tab-content active" id="tab-songs">';
+  if(j.usaChart.available) songs+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="song">'+j.usaChart.songTitle+'</p><p class="artist">'+j.usaChart.artist+'</p></div>';
+  else songs+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="na">'+j.usaChart.message+'</p></div>';
+  if(j.ukChart.available) songs+='<div class="card"><h3>UK Singles Chart</h3><p class="song">'+j.ukChart.songTitle+'</p><p class="artist">'+j.ukChart.artist+'</p></div>';
+  else songs+='<div class="card"><h3>UK Singles Chart</h3><p class="na">'+j.ukChart.message+'</p></div>';
+  if(j.regionalChart.available) songs+='<div class="card"><h3>'+j.regionalChart.chartSource+' Chart</h3><p class="song">'+j.regionalChart.songTitle+'</p><p class="artist">'+j.regionalChart.artist+'</p></div>';
+  else songs+='<div class="card"><h3>Yugoslavia/Croatia Chart</h3><p class="na">'+j.regionalChart.message+'</p></div>';
+  songs+='</div>';
+
+  // World Events tab content
+  var events='<div class="tab-content" id="tab-events">';
+  if(j.worldEvents && j.worldEvents.available){
+    for(var i=0;i<j.worldEvents.events.length;i++){
+      var evt=j.worldEvents.events[i];
+      events+='<div class="event-item"><div class="event-year">'+evt.year+'</div><div class="event-desc">'+evt.description+'</div></div>';
+    }
+  } else {
+    var msg=(j.worldEvents && j.worldEvents.message) ? j.worldEvents.message : "No events available";
+    events+='<div class="card"><p class="na">'+msg+'</p></div>';
+  }
+  events+='</div>';
+
+  r.innerHTML=dayCard+tabs+songs+events;
+
+  // Tab switching logic
+  var tabBtns=r.querySelectorAll('.tab');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click',function(){
+      tabBtns.forEach(function(b){b.classList.remove('active')});
+      btn.classList.add('active');
+      var target=btn.getAttribute('data-tab');
+      r.querySelectorAll('.tab-content').forEach(function(tc){tc.classList.remove('active')});
+      document.getElementById('tab-'+target).classList.add('active');
+    });
+  });
 };
 </script>
 </body>
