@@ -89,6 +89,36 @@ async function getUKChart(date: string) {
   }
 }
 
+async function getWorldEvents(date: string) {
+  try {
+    const d = new Date(date + "T00:00:00Z");
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const year = d.getUTCFullYear();
+    const url = `https://byabbe.se/on-this-day/${month}/${day}/events.json`;
+    const text = await httpGet(url);
+    const json = JSON.parse(text);
+    // Filter events that happened on or before the given year, pick 2-3 most relevant
+    const eventsOnOrBefore = json.events
+      .filter((e: any) => parseInt(e.year) <= year)
+      .sort((a: any, b: any) => parseInt(b.year) - parseInt(a.year))
+      .slice(0, 3);
+    if (eventsOnOrBefore.length === 0) {
+      return { available: false, message: "No historical events found for this date" };
+    }
+    return {
+      available: true,
+      events: eventsOnOrBefore.map((e: any) => ({
+        year: e.year,
+        description: e.description
+      }))
+    };
+  } catch (err: any) {
+    console.log("World events error:", err.message);
+    return { available: false, message: "Could not fetch historical events" };
+  }
+}
+
 function getRegionalChart(date: string) {
   const localData: any = {
     yugoslavia: [
@@ -120,9 +150,9 @@ app.post("/api/lookup", async (req, res) => {
   }
   const d = new Date(date + "T00:00:00Z");
   const dayOfWeek = days[d.getUTCDay()];
-  const [usaChart, ukChart] = await Promise.all([getUSAChart(date), getUKChart(date)]);
+  const [usaChart, ukChart, worldEvents] = await Promise.all([getUSAChart(date), getUKChart(date), getWorldEvents(date)]);
   const regionalChart = getRegionalChart(date);
-  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart });
+  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEvents });
 });
 
 app.listen(3000, () => console.log("Server running at http://localhost:3000"));
