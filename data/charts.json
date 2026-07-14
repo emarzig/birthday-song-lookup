@@ -1,0 +1,26 @@
+{
+  "usa": [
+    {"start":"1958-08-04","end":"1958-08-10","song":"Poor Little Fool","artist":"Ricky Nelson"},
+    {"start":"1969-07-19","end":"1969-07-25","song":"In the Year 2525","artist":"Zager and Evans"},
+    {"start":"1985-07-13","end":"1985-07-19","song":"A View to a Kill","artist":"Duran Duran"},
+    {"start":"2000-01-01","end":"2000-01-07","song":"Smooth","artist":"Santana feat. Rob Thomas"},
+    {"start":"2020-03-21","end":"2020-03-27","song":"The Box","artist":"Roddy Ricch"}
+  ],
+  "uk": [
+    {"start":"1952-11-14","end":"1952-11-20","song":"Here in My Heart","artist":"Al Martino"},
+    {"start":"1969-07-19","end":"1969-07-25","song":"Something in the Air","artist":"Thunderclap Newman"},
+    {"start":"1985-07-13","end":"1985-07-19","song":"Frankie","artist":"Sister Sledge"},
+    {"start":"2000-01-01","end":"2000-01-07","song":"I Have a Dream","artist":"Westlife"},
+    {"start":"2020-03-21","end":"2020-03-27","song":"Blinding Lights","artist":"The Weeknd"}
+  ],
+  "yugoslavia": [
+    {"start":"1969-07-19","end":"1969-07-25","song":"Samo ti","artist":"Indexi"},
+    {"start":"1985-07-13","end":"1985-07-19","song":"Hajde da se volimo","artist":"Lepa Brena"},
+    {"start":"1990-06-01","end":"1990-06-07","song":"Jutro","artist":"Bijelo Dugme"}
+  ],
+  "croatia": [
+    {"start":"2000-01-01","end":"2000-01-07","song":"Virujem u te","artist":"Gibonni"},
+    {"start":"2010-06-05","end":"2010-06-11","song":"Lijepa zeno","artist":"Petar Graso"},
+    {"start":"2020-03-21","end":"2020-03-27","song":"Srce za dvoje","artist":"Nina Badric"}
+  ]
+}

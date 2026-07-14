@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Birthday Song Lookup</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#f5f5f5;padding:2rem}
+.container{max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:2rem;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+h1{margin-bottom:.5rem}
+p{color:#666;margin-bottom:1.5rem}
+label{display:block;margin-bottom:.5rem;font-weight:600}
+input{width:100%;padding:.75rem;border:2px solid #ddd;border-radius:8px;font-size:1rem;margin-bottom:.5rem}
+.btn{background:#4a90d9;color:#fff;border:none;padding:.75rem;border-radius:8px;font-size:1rem;cursor:pointer;width:100%}
+.btn:hover{background:#357abd}
+.error{color:red;font-size:.875rem;margin-bottom:.5rem}
+.card{background:#f8f9fa;border-radius:8px;padding:1rem;margin-top:.75rem}
+.card h3{font-size:.8rem;color:#666;text-transform:uppercase;margin-bottom:.3rem}
+.card .song{font-size:1.1rem;font-weight:600}
+.card .artist{color:#666}
+.na{color:#999;font-style:italic}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Birthday Song Lookup</h1>
+<p>Enter a date of birth to discover what day it was and what songs were #1!</p>
+<form id="f">
+<label>Date of Birth</label>
+<input type="text" id="d" placeholder="YYYY-MM-DD">
+<div class="error" id="e"></div>
+<button type="submit" class="btn">Look Up</button>
+</form>
+<div id="r"></div>
+</div>
+<script>
+document.getElementById("f").onsubmit=async function(ev){
+  ev.preventDefault();
+  var e=document.getElementById("e"),r=document.getElementById("r"),d=document.getElementById("d").value;
+  e.textContent="";r.innerHTML="";
+  if(!d){e.textContent="Enter a date";return;}
+  var res=await fetch("/api/lookup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({date:d})});
+  var j=await res.json();
+  if(!res.ok){e.textContent=j.message;return;}
+  var h='<div class="card"><h3>Day</h3><p class="song">'+j.inputDate+' - '+j.dayOfWeek+'</p></div>';
+  if(j.usaChart.available) h+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="song">'+j.usaChart.songTitle+'</p><p class="artist">'+j.usaChart.artist+'</p></div>';
+  else h+='<div class="card"><h3>USA Billboard Hot 100</h3><p class="na">'+j.usaChart.message+'</p></div>';
+  if(j.ukChart.available) h+='<div class="card"><h3>UK Singles Chart</h3><p class="song">'+j.ukChart.songTitle+'</p><p class="artist">'+j.ukChart.artist+'</p></div>';
+  else h+='<div class="card"><h3>UK Singles Chart</h3><p class="na">'+j.ukChart.message+'</p></div>';
+  if(j.regionalChart.available) h+='<div class="card"><h3>'+j.regionalChart.chartSource+' Chart</h3><p class="song">'+j.regionalChart.songTitle+'</p><p class="artist">'+j.regionalChart.artist+'</p></div>';
+  else h+='<div class="card"><h3>Yugoslavia/Croatia Chart</h3><p class="na">'+j.regionalChart.message+'</p></div>';
+  r.innerHTML=h;
+};
+</script>
+</body>
+</html>
