@@ -45,6 +45,9 @@ function getNearbySaturdays(date: string): string[] {
 }
 
 async function getUSAChart(date: string) {
+  if (date < "1958-08-04") {
+    return { available: false, message: "The Billboard Hot 100 chart did not exist before August 4, 1958" };
+  }
   const saturdays = getNearbySaturdays(date);
   for (const sat of saturdays) {
     try {
