@@ -14,7 +14,11 @@ const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Satur
 function httpGet(url: string, maxRedirects = 5): Promise<string> {
   return new Promise((resolve, reject) => {
     if (maxRedirects <= 0) { reject(new Error("Too many redirects")); return; }
-    https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
+    const headers: Record<string, string> = { "User-Agent": "BirthdaySongLookup/1.0 (https://github.com/emarzig/birthday-song-lookup)" };
+    if (url.includes("wikipedia.org") || url.includes("wikimedia.org")) {
+      headers["Api-User-Agent"] = "BirthdaySongLookup/1.0 (https://github.com/emarzig/birthday-song-lookup)";
+    }
+    https.get(url, { headers }, (res) => {
       if (res.statusCode === 301 || res.statusCode === 302) {
         const loc = res.headers.location;
         if (!loc) { reject(new Error("Redirect without location")); return; }
@@ -65,7 +69,6 @@ async function getUKChart(date: string) {
   try {
     if (date < "1952-11-14") return { available: false, message: "UK chart did not exist before November 1952" };
 
-
     const d = date.replace(/-/g, "");
     const url = "https://www.officialcharts.com/charts/singles-chart/" + d + "/7501/";
     const text = await httpGet(url);
@@ -89,18 +92,31 @@ async function getUKChart(date: string) {
   }
 }
 
-async function getWorldEvents(date: string) {
+async function fetchWikipediaEvents(month: string, day: string): Promise<any[]> {
+  const urls = [
+    `https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/${month}/${day}`,
+    `https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/${month}/${day}`
+  ];
+  for (const url of urls) {
+    try {
+      const text = await httpGet(url);
+      const json = JSON.parse(text);
+      return json.events || [];
+    } catch { continue; }
+  }
+  return [];
+}
+
+async function getWorldEventsOnDate(date: string) {
   try {
     const d = new Date(date + "T00:00:00Z");
-    const month = d.getUTCMonth() + 1;
-    const day = d.getUTCDate();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
     const year = d.getUTCFullYear();
-    const url = `https://byabbe.se/on-this-day/${month}/${day}/events.json`;
-    const text = await httpGet(url);
-    const json = JSON.parse(text);
-    const eventsOnOrBefore = json.events
-      .filter((e: any) => parseInt(e.year) <= year)
-      .sort((a: any, b: any) => parseInt(b.year) - parseInt(a.year))
+    const events = await fetchWikipediaEvents(month, day);
+    const eventsOnOrBefore = events
+      .filter((e: any) => e.year <= year)
+      .sort((a: any, b: any) => b.year - a.year)
       .slice(0, 3);
     if (eventsOnOrBefore.length === 0) {
       return { available: false, message: "No historical events found for this date" };
@@ -108,12 +124,44 @@ async function getWorldEvents(date: string) {
     return {
       available: true,
       events: eventsOnOrBefore.map((e: any) => ({
-        year: e.year,
-        description: e.description
+        year: String(e.year),
+        description: e.text
       }))
     };
   } catch (err: any) {
-    console.log("World events error:", err.message);
+    console.log("World events on date error:", err.message);
+    return { available: false, message: "Could not fetch historical events" };
+  }
+}
+
+async function getWorldEventsThisDay(date: string) {
+  try {
+    const d = new Date(date + "T00:00:00Z");
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    const events = await fetchWikipediaEvents(month, day);
+    const allEvents = events.sort((a: any, b: any) => b.year - a.year);
+    const picked: any[] = [];
+    if (allEvents.length <= 3) {
+      picked.push(...allEvents);
+    } else {
+      // Pick from recent, middle, and old history for variety
+      picked.push(allEvents[0]);
+      picked.push(allEvents[Math.floor(allEvents.length / 2)]);
+      picked.push(allEvents[allEvents.length - 1]);
+    }
+    if (picked.length === 0) {
+      return { available: false, message: "No historical events found for this day" };
+    }
+    return {
+      available: true,
+      events: picked.map((e: any) => ({
+        year: String(e.year),
+        description: e.text
+      }))
+    };
+  } catch (err: any) {
+    console.log("World events this day error:", err.message);
     return { available: false, message: "Could not fetch historical events" };
   }
 }
@@ -149,9 +197,11 @@ app.post("/api/lookup", async (req, res) => {
   }
   const d = new Date(date + "T00:00:00Z");
   const dayOfWeek = days[d.getUTCDay()];
-  const [usaChart, ukChart, worldEvents] = await Promise.all([getUSAChart(date), getUKChart(date), getWorldEvents(date)]);
+  const [usaChart, ukChart, worldEventsOnDate, worldEventsThisDay] = await Promise.all([
+    getUSAChart(date), getUKChart(date), getWorldEventsOnDate(date), getWorldEventsThisDay(date)
+  ]);
   const regionalChart = getRegionalChart(date);
-  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEvents });
+  res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEventsOnDate, worldEventsThisDay });
 });
 
 app.listen(3000, () => console.log("Server running at http://localhost:3000"));
