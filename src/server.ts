@@ -58,7 +58,7 @@ async function getUSAChart(date: string) {
       if (no1) return { available: true, songTitle: no1.song, artist: no1.artist };
     } catch { continue; }
   }
-  return { available: false, message: "USA chart data not available for this date" };
+  return { available: false, message: "Chart data not available for this date" };
 }
 
 async function getUKChart(date: string) {
