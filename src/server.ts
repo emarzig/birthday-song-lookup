@@ -224,7 +224,7 @@ app.post("/api/lookup", async (req, res) => {
   res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEventsOnDate, worldEventsThisDay });
 });
 
-app.listen(3000, () => {
+app.listen(3000, "0.0.0.0", () => {
   console.log("Server running at http://localhost:3000");
   console.log("Serving static files from:", path.join(ROOT_DIR, "public"));
 });
