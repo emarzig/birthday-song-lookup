@@ -205,6 +205,10 @@ function getRegionalChart(date: string) {
   return { available: false, message: chartSource + " chart data not available for this date" };
 }
 
+app.get("/", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "..", "public", "index.html"));
+});
+
 app.post("/api/lookup", async (req, res) => {
   const { date } = req.body;
   if (!date || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date)) {
