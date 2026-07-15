@@ -4,9 +4,10 @@ import { fileURLToPath } from "url";
 import https from "https";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.resolve(process.cwd());
 const app = express();
 app.use(express.json());
-app.use(express.static(path.resolve(__dirname, "..", "public")));
+app.use(express.static(path.join(ROOT_DIR, "public")));
 
 const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
@@ -206,7 +207,7 @@ function getRegionalChart(date: string) {
 }
 
 app.get("/", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "..", "public", "index.html"));
+  res.sendFile(path.join(ROOT_DIR, "public", "index.html"));
 });
 
 app.post("/api/lookup", async (req, res) => {
@@ -223,4 +224,7 @@ app.post("/api/lookup", async (req, res) => {
   res.json({ inputDate: date, dayOfWeek, usaChart, ukChart, regionalChart, worldEventsOnDate, worldEventsThisDay });
 });
 
-app.listen(3000, () => console.log("Server running at http://localhost:3000"));
+app.listen(3000, () => {
+  console.log("Server running at http://localhost:3000");
+  console.log("Serving static files from:", path.join(ROOT_DIR, "public"));
+});
