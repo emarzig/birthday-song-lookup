@@ -19,7 +19,7 @@ function httpGet(url: string, maxRedirects = 5): Promise<string> {
     if (url.includes("wikipedia.org") || url.includes("wikimedia.org")) {
       headers["Api-User-Agent"] = "BirthdaySongLookup/1.0 (https://github.com/emarzig/birthday-song-lookup)";
     }
-    https.get(url, { headers }, (res) => {
+    const req = https.get(url, { headers, timeout: 8000 }, (res) => {
       if (res.statusCode === 301 || res.statusCode === 302) {
         const loc = res.headers.location;
         if (!loc) { reject(new Error("Redirect without location")); return; }
@@ -31,7 +31,9 @@ function httpGet(url: string, maxRedirects = 5): Promise<string> {
       let data = "";
       res.on("data", (chunk) => { data += chunk; });
       res.on("end", () => resolve(data));
-    }).on("error", reject);
+    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("Request timeout")); });
+    req.on("error", reject);
   });
 }
 
