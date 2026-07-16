@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Birthday Song Lookup - Documentation</title>
+<style>
+@page { margin: 2cm; }
+body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+h1 { color: #2c3e50; border-bottom: 3px solid #4a90d9; padding-bottom: 0.5rem; font-size: 2rem; }
+h2 { color: #34495e; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; margin-top: 2rem; }
+h3 { color: #4a90d9; margin-top: 1.5rem; }
+.cover { text-align: center; padding: 4rem 0; border-bottom: 2px solid #4a90d9; margin-bottom: 2rem; }
+.cover h1 { font-size: 2.5rem; border: none; }
+.cover .subtitle { color: #666; font-size: 1.2rem; }
+.cover .meta { color: #999; margin-top: 2rem; font-size: 0.9rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
+th { background: #f8f9fa; font-weight: 600; }
+code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.9rem; }
+pre { background: #f8f9fa; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid #e0e0e0; }
+pre code { background: none; padding: 0; }
+.diagram { background: #f8f9fa; border: 1px solid #ddd; padding: 1.5rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.4; margin: 1rem 0; }
+.note { background: #e8f4fd; border-left: 4px solid #4a90d9; padding: 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0; }
+.warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin: 1rem 0; border-radius: 0 4px 4px 0; }
+ul { padding-left: 1.5rem; }
+li { margin-bottom: 0.3rem; }
+.page-break { page-break-after: always; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Birthday Song Lookup</h1>
+  <p class="subtitle">Technical Documentation & Architecture Overview</p>
+  <p class="meta">
+    Version 1.0.0<br>
+    Author: emarzig<br>
+    Date: July 2026<br>
+    Repository: github.com/emarzig/birthday-song-lookup
+  </p>
+</div>
+
+<div class="page-break"></div>
+
+<h1>Table of Contents</h1>
+<ol>
+  <li>Project Overview</li>
+  <li>Architecture</li>
+  <li>Technology Stack</li>
+  <li>API Reference</li>
+  <li>Data Sources</li>
+  <li>Frontend Structure</li>
+  <li>Installation & Running</li>
+  <li>Project Structure</li>
+  <li>Configuration & Limitations</li>
+  <li>Future Improvements</li>
+</ol>
+
+<div class="page-break"></div>
+
+<h1>1. Project Overview</h1>
+
+<p><strong>Birthday Song Lookup</strong> is a web application that, given a date of birth, returns:</p>
+<ul>
+  <li>The day of the week for that date</li>
+  <li>The #1 song on the <strong>USA Billboard Hot 100</strong> chart</li>
+  <li>The #1 song on the <strong>UK Singles Chart</strong></li>
+  <li>The #1 song on the <strong>Yugoslavia/Croatia regional chart</strong></li>
+  <li><strong>World events</strong> that happened on that exact date (same year)</li>
+  <li><strong>Notable events</strong> that happened on that same day throughout history</li>
+</ul>
+
+<h2>Key Features</h2>
+<table>
+  <tr><th>Feature</th><th>Description</th></tr>
+  <tr><td>Multi-chart lookup</td><td>USA, UK, and regional (Yugoslavia/Croatia) charts</td></tr>
+  <tr><td>Date validation</td><td>Chart availability checks (Billboard: Aug 4, 1958; UK: Nov 14, 1952)</td></tr>
+  <tr><td>World Events</td><td>Historical events from Wikipedia on the exact date</td></tr>
+  <tr><td>Events This Day</td><td>Notable events on the same day across all years</td></tr>
+  <tr><td>Tabbed UI</td><td>Clean tabbed interface: Songs, Events on Date, Events This Day</td></tr>
+  <tr><td>Responsive</td><td>Works on mobile and desktop browsers</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>2. Architecture</h1>
+
+<h2>High-Level Architecture</h2>
+
+<div class="diagram">
++------------------+         +-------------------+         +----------------------+
+|                  |  HTTP   |                   |  HTTPS  |                      |
+|  Browser Client  | ------> |  Express Server   | ------> |  External APIs       |
+|  (index.html)    | <------ |  (server.ts)      | <------ |                      |
+|                  |  JSON   |  Port 3000        |  JSON   |  - Billboard (GitHub)|
++------------------+         +-------------------+         |  - UK Official Charts|
+                                                           |  - Wikipedia REST API|
+                                                           +----------------------+
+</div>
+
+<h2>Request Flow</h2>
+<ol>
+  <li>User enters date in browser form</li>
+  <li>Frontend sends <code>POST /api/lookup</code> with JSON body <code>{"date": "YYYY-MM-DD"}</code></li>
+  <li>Server validates date format</li>
+  <li>Server makes parallel requests to:
+    <ul>
+      <li>Billboard Hot 100 data (GitHub JSON)</li>
+      <li>UK Official Charts (web scraping)</li>
+      <li>Wikipedia On This Day API (2 calls: on-date + this-day)</li>
+    </ul>
+  </li>
+  <li>Server computes regional chart from local data</li>
+  <li>Server returns combined JSON response</li>
+  <li>Frontend renders results in tabbed UI</li>
+</ol>
+
+<h2>Concurrency Model</h2>
+<p>All external API calls are made in <strong>parallel</strong> using <code>Promise.all()</code> to minimize response time:</p>
+<pre><code>const [usaChart, ukChart, worldEventsOnDate, worldEventsThisDay] = await Promise.all([
+  getUSAChart(date), getUKChart(date), getWorldEventsOnDate(date), getWorldEventsThisDay(date)
+]);</code></pre>
+
+<div class="page-break"></div>
+
+<h1>3. Technology Stack</h1>
+
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Version</th></tr>
+  <tr><td>Runtime</td><td>Node.js</td><td>22+</td></tr>
+  <tr><td>Language</td><td>TypeScript</td><td>5.7+</td></tr>
+  <tr><td>Server Framework</td><td>Express.js</td><td>4.18</td></tr>
+  <tr><td>TypeScript Runner</td><td>tsx</td><td>4.7+</td></tr>
+  <tr><td>Frontend</td><td>Vanilla HTML/CSS/JS</td><td>-</td></tr>
+  <tr><td>HTTP Client</td><td>Node.js native https module</td><td>-</td></tr>
+  <tr><td>Package Manager</td><td>npm</td><td>-</td></tr>
+</table>
+
+<h2>Why These Choices?</h2>
+<ul>
+  <li><strong>Express.js</strong> - Minimal, well-known, easy to deploy</li>
+  <li><strong>TypeScript</strong> - Type safety for complex API responses</li>
+  <li><strong>tsx</strong> - Run TypeScript directly without build step (dev mode)</li>
+  <li><strong>Vanilla frontend</strong> - No framework needed for this simple UI, fast loading</li>
+  <li><strong>Native https</strong> - No extra dependencies for HTTP calls</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h1>4. API Reference</h1>
+
+<h2>POST /api/lookup</h2>
+
+<h3>Request</h3>
+<pre><code>POST /api/lookup
+Content-Type: application/json
+
+{
+  "date": "1983-07-28"
+}</code></pre>
+
+<h3>Successful Response (200)</h3>
+<pre><code>{
+  "inputDate": "1983-07-28",
+  "dayOfWeek": "Thursday",
+  "usaChart": {
+    "available": true,
+    "songTitle": "Every Breath You Take",
+    "artist": "The Police"
+  },
+  "ukChart": {
+    "available": true,
+    "songTitle": "Baby Jane",
+    "artist": "Rod Stewart"
+  },
+  "regionalChart": {
+    "available": false,
+    "message": "Yugoslavia chart data not available for this date"
+  },
+  "worldEventsOnDate": {
+    "available": true,
+    "dateUsed": "1983-07-28",
+    "events": [
+      { "year": "1983", "description": "Event description..." }
+    ]
+  },
+  "worldEventsThisDay": {
+    "available": true,
+    "events": [
+      { "year": "2005", "description": "..." },
+      { "year": "1976", "description": "..." },
+      { "year": "1540", "description": "..." }
+    ]
+  }
+}</code></pre>
+
+<h3>Error Response (400)</h3>
+<pre><code>{
+  "error": true,
+  "message": "Date must be in YYYY-MM-DD format"
+}</code></pre>
+
+<h3>Date Validation Rules</h3>
+<table>
+  <tr><th>Chart</th><th>Available From</th><th>Message if Earlier</th></tr>
+  <tr><td>USA Billboard Hot 100</td><td>August 4, 1958</td><td>"Chart not available before August 4, 1958"</td></tr>
+  <tr><td>UK Singles Chart</td><td>November 14, 1952</td><td>"UK chart did not exist before November 1952"</td></tr>
+  <tr><td>Regional</td><td>Varies (hardcoded data)</td><td>"[Country] chart data not available for this date"</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>5. Data Sources</h1>
+
+<h2>USA Billboard Hot 100</h2>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>Source</td><td>github.com/mhollingshead/billboard-hot-100</td></tr>
+  <tr><td>Format</td><td>JSON files per date</td></tr>
+  <tr><td>Coverage</td><td>August 4, 1958 - present</td></tr>
+  <tr><td>Method</td><td>HTTP GET to raw GitHub content</td></tr>
+  <tr><td>Fallback</td><td>Tries nearby Saturdays (up to 4 weeks back)</td></tr>
+</table>
+
+<h2>UK Singles Chart</h2>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>Source</td><td>officialcharts.com</td></tr>
+  <tr><td>Format</td><td>HTML (Nuxt SSR data in script tag)</td></tr>
+  <tr><td>Coverage</td><td>November 14, 1952 - present</td></tr>
+  <tr><td>Method</td><td>Web scraping (parses __NUXT_DATA__ JSON)</td></tr>
+</table>
+
+<h2>World Events (Wikipedia)</h2>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>Primary Source</td><td>en.wikipedia.org/api/rest_v1/feed/onthisday/events/MM/DD</td></tr>
+  <tr><td>Fallback Source</td><td>api.wikimedia.org/feed/v1/wikipedia/en/onthisday/events/MM/DD</td></tr>
+  <tr><td>Format</td><td>JSON</td></tr>
+  <tr><td>Coverage</td><td>All recorded history</td></tr>
+  <tr><td>On-Date Logic</td><td>Filters events matching exact birth year; if none, checks +/- 3 days</td></tr>
+  <tr><td>This-Day Logic</td><td>Picks 3 events spread across history (recent, middle, ancient)</td></tr>
+</table>
+
+<h2>Regional Chart (Yugoslavia/Croatia)</h2>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>Source</td><td>Hardcoded local data</td></tr>
+  <tr><td>Format</td><td>Array of {start, end, song, artist}</td></tr>
+  <tr><td>Coverage</td><td>Selected weeks only (demo data)</td></tr>
+  <tr><td>Logic</td><td>Before 1991: Yugoslavia; After 1991: Croatia</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>6. Frontend Structure</h1>
+
+<h2>Single-Page Application</h2>
+<p>The frontend is a single <code>public/index.html</code> file containing:</p>
+<ul>
+  <li>Inline CSS styles (no external stylesheets)</li>
+  <li>Form for date input</li>
+  <li>JavaScript that handles form submission and renders results</li>
+</ul>
+
+<h2>UI Components</h2>
+<table>
+  <tr><th>Component</th><th>Description</th></tr>
+  <tr><td>Date Input</td><td>Text field with YYYY-MM-DD placeholder</td></tr>
+  <tr><td>Error Display</td><td>Red text below input for validation errors</td></tr>
+  <tr><td>Day Card</td><td>Shows the date and day of week</td></tr>
+  <tr><td>Tab Bar</td><td>3 tabs: Songs, World Events on [date], World Events this day</td></tr>
+  <tr><td>Song Cards</td><td>Display song title and artist per chart</td></tr>
+  <tr><td>Event Items</td><td>Year badge + description, color-coded (blue/orange)</td></tr>
+</table>
+
+<h2>Color Scheme</h2>
+<table>
+  <tr><th>Element</th><th>Color</th><th>Hex</th></tr>
+  <tr><td>Primary (buttons, active tabs)</td><td>Blue</td><td>#4a90d9</td></tr>
+  <tr><td>Events on date border</td><td>Blue</td><td>#4a90d9</td></tr>
+  <tr><td>Events this day border</td><td>Orange</td><td>#e67e22</td></tr>
+  <tr><td>Background</td><td>Light gray</td><td>#f5f5f5</td></tr>
+  <tr><td>Cards</td><td>Very light gray</td><td>#f8f9fa</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>7. Installation & Running</h1>
+
+<h2>Prerequisites</h2>
+<ul>
+  <li>Node.js 18+ (recommended: 22)</li>
+  <li>npm</li>
+</ul>
+
+<h2>Setup</h2>
+<pre><code>git clone https://github.com/emarzig/birthday-song-lookup.git
+cd birthday-song-lookup
+npm install</code></pre>
+
+<h2>Run (Development)</h2>
+<pre><code>npm run dev</code></pre>
+<p>Opens server at <code>http://localhost:3000</code></p>
+
+<h2>Run (GitHub Codespace)</h2>
+<pre><code>npm run dev</code></pre>
+<p>Server binds to <code>0.0.0.0:3000</code>. Use the Codespace port-forwarded URL.</p>
+
+<div class="page-break"></div>
+
+<h1>8. Project Structure</h1>
+
+<pre><code>birthday-song-lookup/
++-- package.json          # Dependencies and scripts
++-- .gitignore            # Ignored files (node_modules, dist, release)
++-- src/
+|   +-- server.ts         # Main Express server (all backend logic)
++-- public/
+|   +-- index.html        # Frontend (single HTML file with inline CSS/JS)
++-- docs/
+    +-- documentation.html  # This documentation (print to PDF)</code></pre>
+
+<h2>Key Files</h2>
+<table>
+  <tr><th>File</th><th>Lines</th><th>Purpose</th></tr>
+  <tr><td>src/server.ts</td><td>~220</td><td>Express server, all API logic, data fetching</td></tr>
+  <tr><td>public/index.html</td><td>~110</td><td>Complete frontend (HTML + CSS + JS)</td></tr>
+  <tr><td>package.json</td><td>~16</td><td>Dependencies and npm scripts</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h1>9. Configuration & Limitations</h1>
+
+<h2>Configuration</h2>
+<table>
+  <tr><th>Setting</th><th>Value</th><th>Location</th></tr>
+  <tr><td>Port</td><td>3000</td><td>server.ts (hardcoded)</td></tr>
+  <tr><td>Host</td><td>0.0.0.0</td><td>server.ts</td></tr>
+  <tr><td>HTTP Timeout</td><td>8 seconds</td><td>httpGet() function</td></tr>
+  <tr><td>Max Redirects</td><td>5</td><td>httpGet() function</td></tr>
+  <tr><td>Nearby days search</td><td>+/- 3 days</td><td>getWorldEventsOnDate()</td></tr>
+</table>
+
+<h2>Known Limitations</h2>
+<ul>
+  <li><strong>Regional chart data</strong> is hardcoded with only a few sample entries</li>
+  <li><strong>UK chart scraping</strong> depends on Official Charts website HTML structure</li>
+  <li><strong>Wikipedia API</strong> may not have events for every date/year combination</li>
+  <li><strong>Billboard data</strong> depends on third-party GitHub repository availability</li>
+  <li><strong>No caching</strong> - every request fetches fresh data from external APIs</li>
+  <li><strong>No authentication</strong> - API is open to anyone who can reach the server</li>
+</ul>
+
+<h2>Error Handling</h2>
+<p>Each data source has independent error handling. If one API fails, the others still return data. Users see specific "not available" messages per data source.</p>
+
+<div class="page-break"></div>
+
+<h1>10. Future Improvements</h1>
+
+<ul>
+  <li>Add caching layer (Redis or in-memory) to reduce external API calls</li>
+  <li>Expand regional chart data (Serbia, Bosnia, Slovenia)</li>
+  <li>Add more chart sources (Australia ARIA, Germany, France)</li>
+  <li>Add Spotify/YouTube links for found songs</li>
+  <li>Date picker UI instead of text input</li>
+  <li>Loading spinner during API call</li>
+  <li>Share results feature (generate shareable link or image)</li>
+  <li>Mobile-optimized PWA version</li>
+  <li>Environment variables for configuration (port, timeout)</li>
+  <li>Rate limiting to protect external API sources</li>
+</ul>
+
+<div class="note">
+  <strong>Note:</strong> To generate a PDF from this document, open it in a browser and use <strong>Ctrl+P</strong> (or Cmd+P on Mac) → select "Save as PDF".
+</div>
+
+</body>
+</html>
